@@ -1,8 +1,16 @@
-﻿namespace Sharpify
+﻿[<AutoOpen>]
+module Sharpify.Json
 
 open FParsec
 
-type JavascriptParser() = 
+type Json = JString of string
+          | JNumber of float
+          | JBool   of bool
+          | JNull
+          | JList   of Json list
+          | JObject of Map<string, Json>
+
+let json = 
   let ws = spaces
   let str = pstring 
 
@@ -62,5 +70,5 @@ type JavascriptParser() =
   let program = 
     JSONValue .>> eof
 
-  member this.Parse = run program
+  program
       

@@ -1,12 +1,11 @@
-﻿module JavaScriptParserTests
+﻿module Sharpify.Tests.JsonTests
 
 open Sharpify
 open Xunit
 open FParsec
 
 let test str result =    
-  let parser = JavascriptParser ()  
-  match parser.Parse str with
+  match run json str with
   | Success(result, _, _)   -> 
     printf "Success: %A" result
     Assert.True true
