@@ -1,4 +1,4 @@
-﻿module Sharpify.Tests.JsonTests
+﻿module Sharpify.Tests.Json
 
 open Sharpify
 open Xunit
@@ -13,9 +13,6 @@ let test str result =
     printf "Failure: %s" errorMsg
     Assert.True false   
 
-[<Fact>]
-let ``Parser Can Parse variable declaration with Number``() =         
-    test @"var x = 5"
 
 [<Fact>]
 let ``Can parse JSON Object``() = 

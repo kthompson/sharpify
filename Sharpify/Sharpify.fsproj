@@ -49,7 +49,9 @@
   </Choose>
   <Import Project="$(FSharpTargetsPath)" />
   <ItemGroup>
+    <Compile Include="Syntax.fs" />
     <Compile Include="Json.fs" />
+    <Compile Include="EcmaScript.fs" />
     <None Include="Script.fsx" />
     <Content Include="packages.config" />
     <Content Include="app.config" />
