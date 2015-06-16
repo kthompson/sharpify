@@ -4,12 +4,14 @@ module Sharpify.ECMAScript
 open FParsec
 open Sharpify.Syntax
 
-let ecmaScript : Parser<PrimaryExpression, unit>= 
+let ecmaScript : Parser<Expression, unit>= 
   let ws = spaces
   let str = pstring 
 
 
-  
+  let BP (p: Parser<_,_>) stream =
+    p stream // set a breakpoint here
+
   //  Ecma-262 - 7.8.1
   let NullLiteral =
     stringReturn "null" Null
@@ -62,12 +64,26 @@ let ecmaScript : Parser<PrimaryExpression, unit>=
   //  Ecma-262 - 7.8
   let Literal = 
     NullLiteral
-    <|> BooleanLiteral
+    <|> (BooleanLiteral <?> "boolean")
     <|> NumericLiteral
-    <|> StringLiteral
+    <|> (StringLiteral <?> "string")
     //TODO: <|> RegularExpressionLiteral
-    |>> fun x -> Literal x
+    |>> Literal
 
+  let binaryExpression sep childExpr f = 
+    let expr', expr'Ref = createParserForwardedToRef<Expression, unit>()
+
+    let expr = (childExpr .>> ws) .>>. opt expr' |>> fun (a, b) ->
+          match b with 
+          | Some e -> f (a,  e)
+          | None -> a
+
+    do expr'Ref := sep >>. ws >>. expr .>>. opt expr' |>> fun (a, b) ->
+          match b with 
+          | Some e -> f (a,  e)
+          | None -> a
+
+    expr
 //  let IdentifierName =
 //    IdentifierStart
 //    <|> IdentifierName IdentifierPart
@@ -76,28 +92,51 @@ let ecmaScript : Parser<PrimaryExpression, unit>=
 //  let Identifier =
 //    //IdentifierName but not ReservedWord
 //    let firstLetter c = c = '$' || c = '_' || 
+  
+  let PrimaryExp, PrimaryExpRef = createParserForwardedToRef<Expression, unit>()
+
+  //  Ecma-262 - 11.11  
+  let BitwiseANDExpr = binaryExpression (str "&") PrimaryExp BitwiseAndExpression
+  let BitwiseXORExpr = binaryExpression (str "^") BitwiseANDExpr BitwiseXorExpression
+  let BitwiseORExpr = binaryExpression (str "|") BitwiseXORExpr BitwiseOrExpression
+  let LogicalANDExpr = binaryExpression (str "&&") BitwiseORExpr AndExpression
+  let LogicalORExpr = binaryExpression (str "||") LogicalANDExpr OrExpression
+
+  let ConditionalExpression = 
+    LogicalORExpr
+    //<|> LogicalORExpression ? AssignmentExpression : AssignmentExpression
 
 
-  //  Ecma-262 - 11.1
-  let  PrimaryExpression =
+  //  Ecma-262 - 11.13
+  let AssignmentExpr =
+      ConditionalExpression
+  //    LeftHandSideExpression = AssignmentExpression
+  //    LeftHandSideExpression AssignmentOperator AssignmentExpression
+
+  //  Ecma-262 - 11.14
+  let Expr = sepBy (AssignmentExpr .>> ws) (str "," >>. ws) |>> Expressions
+      
+
+
+  //  Ecma-262 - 11.1.4
+  let  ArrayLiteral =
+    let Elision = skipMany (str ",") >>. ws
+    let subExpr = Elision >>. AssignmentExpr
+    let ElementList = 
+      ws >>. sepBy (subExpr .>> ws) ((str "," >>. ws)) 
+      |>> Array
+
+    str "[" >>. ElementList .>> str "]"
+
+    //  Ecma-262 - 11.1
+  do PrimaryExpRef :=
     stringReturn "this" This
   //    Identifier
     <|>    Literal
-  //    ArrayLiteral
+    <|>    ArrayLiteral
   //    ObjectLiteral
-  //    ( Expression )
-  //  Ecma-262 - 11.1.4
-  //  ArrayLiteral :
-  //    [ Elision-opt ]
-  //    [ ElementList ]
-  //    [ ElementList , Elision-opt ]
-  //  ElementList :
-  //    Elisionopt AssignmentExpression
-  //    ElementList , Elisionopt AssignmentExpression
-  //  Elision :
-  //    ,
-  //    Elision ,
-
+  //    ( Expression )
+    |>> PrimaryExpression
   //  Ecma-262 - 11.1.5
   //  ObjectLiteral :
   //    { }
@@ -130,7 +169,8 @@ let ecmaScript : Parser<PrimaryExpression, unit>=
   //    FunctionExpression
   //    MemberExpression [ Expression ]
   //    MemberExpression . IdentifierName
-  //    new MemberExpression Arguments  
+  //    new MemberExpression Arguments
+  
   //  Ecma-262 - 11.2.2
   //  NewExpression :
   //    MemberExpression
@@ -157,6 +197,6 @@ let ecmaScript : Parser<PrimaryExpression, unit>=
   //    CallExpression
 
   let program = 
-    PrimaryExpression .>> eof
+    Expr .>> eof
 
   program
